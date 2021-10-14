@@ -179,6 +179,7 @@ detectBorder:
     BEQ checkFurther
     RTS
     checkFurther:
+        TXA
         AND #$f0
         ; now we can check for even
         ; we can shift this 4 times to the right
