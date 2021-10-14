@@ -72,7 +72,6 @@ initBall:
     ; set last location empty
     LDX #0
     STX $03
-    LDX #2
     STX $04
 
     RTS
