@@ -33,14 +33,10 @@
 ; 2 - Down-Right 
 ; 3 - Down-Left 
 
-; Since this is simply a matter of plotting X/Y coordinates, given the
-; trajectory it will simply be a matter of inc/dec X and Y
 ; We'll store trajectory in memory address $02
 
-game:
-    JSR initBall
-    JSR initTrajectory
-    JSR loop
+JSR initBall
+JSR initTrajectory
 
 loop:
     JSR drawBall
