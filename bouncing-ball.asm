@@ -70,8 +70,10 @@ initBall:
     STA $01
 
     ; set last location empty
-    LDX #0
+    ; will set just $0200 for now - first pixel of screen memory
+    LDX #$00
     STX $03
+    LDX #$02
     STX $04
 
     RTS
@@ -171,18 +173,16 @@ detectBorder:
     ; $0x40 
     ; ...
     ; $0xe0 
-    ; so actually we only about the least significant part which is stored in $00
-    ; We can already mask way the lowest 4 bits % 11110000 / $f0
-    LDX $00
+    LDX $00  ; load current value to X, we'll need to again soon
     TXA
-    AND #$0f
-    BEQ checkFurther
+    AND #$0f ; And with lower 4 bits, checking if the last digit is 0
+    BEQ checkFurther ; if last is 0 we continue the check
     RTS
     checkFurther:
-        TXA
-        AND #$f0
-        ; now we can check for even
-        ; we can shift this 4 times to the right
+        TXA ; transfer value back since it was modified
+        ; we know it ends in 0
+        ; now we can check for even in the high bits
+        ; shift this 4 times to the right
         LSR A
         LSR A
         LSR A
