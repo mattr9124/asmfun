@@ -28,10 +28,10 @@
 ; etc...
 
 ; The ball will have 4 possible trajectories:
-; 0 - Up-Left (45)
-; 1 - Up-Right (135)
-; 2 - Down-Right (225)
-; 3 - Down-Left (315)
+; 0 - Up-Left 
+; 1 - Up-Right 
+; 2 - Down-Right 
+; 3 - Down-Left 
 
 ; Since this is simply a matter of plotting X/Y coordinates, given the
 ; trajectory it will simply be a matter of inc/dec X and Y
@@ -45,7 +45,7 @@ JSR loop
 loop:
 JSR drawBall
 JSR update
-;JSR spinWheels
+JSR spinWheels
 ; infinite loop
 JMP loop
 
@@ -58,7 +58,7 @@ initBall:
 ; we can generate a position and a page
 ; First random is any single byye
 LDA $fe
-LDA #$0f ;DEBUG ONLY
+;LDA #$f0 ;DEBUG ONLY - force value
 STA $00
 ; now load Y which is a page from 2-5
 LDA $fe
@@ -68,7 +68,7 @@ LDA $fe
 AND #$02
 ADC #02
 
-LDA #3 ;DEBUG ONLY
+;LDA #3 ;DEBUG ONLY - force value
 
 STA $01
 
@@ -84,7 +84,7 @@ initTrajectory:
 ; random from 0-3
 LDA $fe
 AND #02
-LDA #0 ; DEBUG ONLY
+;LDA #0 ; DEBUG ONLY - force value
 STA $02
 
 drawBall:
@@ -114,8 +114,8 @@ LDX $00
 STX $03
 LDX $01
 STX $04
+; TODO need todetermine collisions
 
-; determine trajectory
 LDX $02
 CPX #0
 BEQ upLeft
@@ -125,7 +125,8 @@ CPX #2
 BEQ downRight
 CPX #3
 BEQ downLeft
-
+; TODO up and down are reversed
+; down page works, up page not - to be investigated
     upLeft:
     DEC $00 ; move x 1 to the left
     ; move y 1 up
@@ -154,8 +155,8 @@ upPage:
     LDA $00 ; we still load 00 into memory
     CLC ; clear carry first
     ADC #$20
-    BCS nextPage
     STA $00 ; store it back
+    BCS nextPage
     RTS
     nextPage:
     INC $01 ; next page
@@ -165,8 +166,8 @@ downPage:
     LDA $00 ; we still load 00 into memory
     CLC ; clear carry first
     SBC #$20
-    BCS prevPage
     STA $00 ; store it back
+    BCS prevPage
     RTS
     prevPage:
     DEC $01 ; next page
