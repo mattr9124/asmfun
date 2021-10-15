@@ -27,11 +27,14 @@
 ; Row 2: $0220 - $023f
 ; etc...
 
-; The ball will have 4 possible trajectories:
-; 0 - Up-Left 
-; 1 - Up-Right 
-; 2 - Down-Right 
-; 3 - Down-Left 
+; The ball will have 4 possible trajectories using first 2 bits
+; Bit 0 off is left, on is right
+; Bit 1 off is down, on is up
+; which works out to
+; Down-Left 00    0
+; Down-Right 01   1 
+; Up-Left 10      2
+; Up-Right 11     3
 
 ; We'll store trajectory in memory address $02
 
@@ -55,7 +58,7 @@ initBall:
     ; we can generate a position and a page
     ; First random is any single byye
     LDA $fe
-    LDA #$a7 ;DEBUG ONLY - force value
+    LDA #$a9 ;DEBUG ONLY - force value
     STA $00
     ; now load Y which is a page from 2-5
     LDA $fe
@@ -65,7 +68,7 @@ initBall:
     AND #$02
     ADC #02
 
-    LDA #3 ;DEBUG ONLY - force value
+    LDA #5 ;DEBUG ONLY - force value
 
     STA $01
 
@@ -82,7 +85,7 @@ initTrajectory:
     ; random from 0-3
     LDA $fe
     AND #02
-    LDA #3 ; DEBUG ONLY - force value
+    LDA #0 ; DEBUG ONLY - force value
     STA $02
 
     RTS    
@@ -107,17 +110,17 @@ update:
     STX $03
     LDX $01
     STX $04
-    ; TODO need todetermine collisions
-    ; TODO change direction to use 2 bits
+
+    ; determine direction and branch 
     LDX $02
     CPX #0
-    BEQ upLeft
-    CPX #1
-    BEQ upRight
-    CPX #2
-    BEQ downRight
-    CPX #3
     BEQ downLeft
+    CPX #1
+    BEQ downRight
+    CPX #2
+    BEQ upLeft
+    CPX #3
+    BEQ upRight
 
     upLeft:
         DEC $00 ; move x 1 to the left
@@ -166,7 +169,13 @@ update:
 
 
 detectBorder:
-    ; hopefully we can figure this out with some bit masking
+    JSR checkLeft
+    JSR checkBottom
+    ;JSR checkRight
+    ;JSR checkTop
+    RTS
+
+checkLeft:
     ; left borders are 
     ; $0x00
     ; $0x20 
@@ -176,9 +185,9 @@ detectBorder:
     LDX $00  ; load current value to X, we'll need to again soon
     TXA
     AND #$0f ; And with lower 4 bits, checking if the last digit is 0
-    BEQ checkFurther ; if last is 0 we continue the check
+    BEQ continueLeftCheck ; if last is 0 we continue the check
     RTS
-    checkFurther:
+    continueLeftCheck:
         TXA ; transfer value back since it was modified
         ; we know it ends in 0
         ; now we can check for even in the high bits
@@ -190,15 +199,40 @@ detectBorder:
         ; now we logical AND with 1 to see if it's even or not
         AND #01
         ; if it's a border we change direction
-        BEQ changeDirLR
+        BEQ flipLeftRight
         RTS
 
-        changeDirLR:
-            DEC $02 
-            RTS
-;    changeDirLR:
-;        LDX $02 ; direction stored in memory 2
+checkBottom:
+    ; we didn't hit the left, let's check bottom now
+    ; already we need to see if we are on page 5 
+    LDX $01
+    CPX #5
+    BEQ continueBottomCheck
+    RTS    
+    continueBottomCheck:
+        ; position e0-ff will be the bottom left corner
+        ; if you do $01 minus e0, the result should be > 0, otherwise we're at the bottom
+        LDA $00
+        SBC #$e0
+        BCS flipUpDown
+        RTS
 
+flipLeftRight:
+    ; we need to flip left right
+    ; load direction
+    LDA $02
+    ; XOR with first bit to flip
+    EOR #1
+    ; store it back
+    STA $02
+    RTS
+
+flipUpDown:
+    ; same as above but on second bit
+    LDA $02
+    EOR #2
+    STA $02
+    RTS
 
 
 ; from that Gist
