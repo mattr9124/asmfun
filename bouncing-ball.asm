@@ -51,7 +51,9 @@ loop:
 
 
 initBall:
-    ; we'll store the X/Y coordiantes in memory locations $00 and $01 respectively
+    ; we'll store the position coordiantes in memory locations $00 and $01 respectively
+    ; originally meant to do an X/Y thing, but that's not really how it works. It's more
+    ; page and position.
     ; let's give it a random starting position within the boundaries of $0200 - $05ff
     ; why is loading $fe random? Not sure... TBC
     ; Since we actually have 4 pages of 00-ff, then 2-5 (see the Gist above)
