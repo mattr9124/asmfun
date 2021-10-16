@@ -43,8 +43,8 @@ JSR initTrajectory
 
 loop:
     JSR drawBall
-    JSR update
     JSR detectBorder
+    JSR update
     JSR spinWheels
     ; infinite loop
     JMP loop
@@ -58,7 +58,7 @@ initBall:
     ; we can generate a position and a page
     ; First random is any single byye
     LDA $fe
-    LDA #$a9 ;DEBUG ONLY - force value
+    ;LDA #$a9 ;DEBUG ONLY - force value
     STA $00
     ; now load Y which is a page from 2-5
     LDA $fe
@@ -68,7 +68,7 @@ initBall:
     AND #$02
     ADC #02
 
-    LDA #5 ;DEBUG ONLY - force value
+    ;LDA #5 ;DEBUG ONLY - force value
 
     STA $01
 
@@ -79,13 +79,17 @@ initBall:
     LDX #$02
     STX $04
 
+    ; init color
+    LDX #1
+    STX $05
+
     RTS
 
 initTrajectory:
     ; random from 0-3
     LDA $fe
     AND #02
-    LDA #0 ; DEBUG ONLY - force value
+    ;LDA #0 ; DEBUG ONLY - force value
     STA $02
 
     RTS    
@@ -94,12 +98,13 @@ drawBall:
     ;clear the Y register
     LDY #0
     ; clear any previous position
+    ; set color black
     LDA #0
     STA ($03),Y
 
     ; draw the ball
     ;set color
-    LDA #01
+    LDA $05
 
     STA ($00),Y
     RTS
@@ -171,8 +176,8 @@ update:
 detectBorder:
     JSR checkLeft
     JSR checkBottom
-    ;JSR checkRight
-    ;JSR checkTop
+    JSR checkRight
+    JSR checkTop
     RTS
 
 checkLeft:
@@ -202,9 +207,31 @@ checkLeft:
         BEQ flipLeftRight
         RTS
 
+checkRight:
+    ; right border will be the odd ones finish in f
+    ; $0x1f
+    ; $0x3f
+    ; ...
+    ; $0xff
+    ; basically the opposite of the above
+    LDX $00
+    TXA
+    AND #$f
+    CMP #$0f
+    BEQ continueRightCheck
+    RTS
+    continueRightCheck:
+        TXA
+        LSR A
+        LSR A
+        LSR A
+        LSR A
+        AND #1
+        BNE flipLeftRight
+        RTS
+
 checkBottom:
-    ; we didn't hit the left, let's check bottom now
-    ; already we need to see if we are on page 5 
+    ; we need to see if we are on page 5
     LDX $01
     CPX #5
     BEQ continueBottomCheck
@@ -217,30 +244,56 @@ checkBottom:
         BCS flipUpDown
         RTS
 
+checkTop:
+    ; check if we are on page 2
+    LDX $01
+    CPX #2
+    BEQ continueTopCheck
+    RTS
+    continueTopCheck:
+        LDA $00
+        ; 0 - 1f is top row
+        SBC #$1e
+        BCC  flipUpDown
+        RTS
+
 flipLeftRight:
     ; we need to flip left right
-    ; load direction
-    LDA $02
-    ; XOR with first bit to flip
-    EOR #1
-    ; store it back
-    STA $02
-    RTS
+    ; XOR bit
+    LDX #1
+    STX $06
+    JMP doFlip
 
 flipUpDown:
     ; same as above but on second bit
+    LDX #2
+    STX $06
+    ; don't need to jump since it's already next instruction
+doFlip:
+    ; load direction
     LDA $02
-    EOR #2
+    ; XOR with first bit to flip
+    EOR $06
+    ; store it back
     STA $02
+    ;change color
+    LDX $05
+    INX
+    TXA
+    AND #$0f
+    STA $05
+    BEQ skipColor ; avoid black since backgroun is black
     RTS
-
+    skipColor:
+        INC $05
+        RTS
 
 ; from that Gist
 spinWheels:
   ;slow the game down by wasting cycles
-  ldx #0       ;load zero in the X register
+  ldx #$50       ;load zero in the X register
 spinloop:
-  nop          ;no operation, just skip a cycle
+  ;nop          ;no operation, just skip a cycle
   nop          ;no operation, just skip a cycle
   dex          ;subtract one from the value stored in register x
   bne spinloop ;if the zero flag is clear, loop. The first dex above wrapped the
