@@ -32,11 +32,16 @@
 ; Bit 1 off is down, on is up
 ; which works out to
 ; Down-Left 00    0
-; Down-Right 01   1 
+; Down-Right 01   1
 ; Up-Left 10      2
 ; Up-Right 11     3
 
 ; We'll store trajectory in memory address $02
+
+; initialize loop counter delay
+; the number we store in $10 will be the number of times to loop, up to ff
+LDX #$a0
+STX $10
 
 JSR initBall
 JSR initTrajectory
@@ -45,7 +50,7 @@ loop:
     JSR drawBall
     JSR detectBorder
     JSR update
-    JSR spinWheels
+    JSR wait
     ; infinite loop
     JMP loop
 
@@ -94,7 +99,7 @@ initTrajectory:
     ;LDA #0 ; DEBUG ONLY - force value
     STA $02
 
-    RTS    
+    RTS
 
 drawBall:
     ;clear the Y register
@@ -118,7 +123,7 @@ update:
     LDX $01
     STX $04
 
-    ; determine direction and branch 
+    ; determine direction and branch
     LDX $02
     CPX #0
     BEQ downLeft
@@ -129,51 +134,47 @@ update:
     CPX #3
     BEQ upRight
 
-    upLeft:
-        DEC $00 ; move x 1 to the left
-        ; move y 1 up
-        JSR decPage
-        RTS
+upLeft:
+    DEC $00 ; move x 1 to the left
+    ; move y 1 up
+    JSR decPage
+    RTS
 
-    upRight:
-        INC $00
-        JSR decPage
-        RTS
+upRight:
+    INC $00
+    JSR decPage
+    RTS
 
-    downRight:
-        INC $00
-        JSR incPage
-        RTS
+downRight:
+    INC $00
+    JSR incPage
+    RTS
 
-    downLeft:
+downLeft:
 
-        DEC $00
-        JSR incPage
-        RTS
+    DEC $00
+    JSR incPage
+    RTS
 
-        incPage:
-            ; we need to add 32/0x20 in this case
-            ; if carry flag is set we need to move to the next page
-            LDA $00 ; we still load 00 into memory
-            CLC ; clear carry first
-            ADC #$20
-            STA $00 ; store it back
-            BCS nextPage
-            RTS
-            nextPage:
-                INC $01 ; next page
-                RTS
+incPage:
+    ; we need to add 32/0x20 in this case
+    ; if carry flag is set we need to move to the next page
+    LDA $00 ; we still load 00 into memory
+    CLC ; clear carry first
+    ADC #$20
+    STA $00 ; store it back
+    BCC return
+    INC $01 ; next page
+    RTS
 
-        decPage:
-            LDA $00 ; we still load 00 into memory
-            SBC #$20
-            STA $00 ; store it back
-            BCC prevPage
-            RTS
-            prevPage:
-                DEC $01 ; preivous page
-                RTS
-
+decPage:
+    LDA $00 ; we still load 00 into memory
+    SBC #$20
+    STA $00 ; store it back
+    BCS return
+    DEC $01 ; preivous page
+return:
+    RTS
 
 detectBorder:
     JSR checkLeft
@@ -183,31 +184,29 @@ detectBorder:
     RTS
 
 checkLeft:
-    ; left borders are 
+    ; left borders are
     ; $0x00
-    ; $0x20 
-    ; $0x40 
+    ; $0x20
+    ; $0x40
     ; ...
-    ; $0xe0 
+    ; $0xe0
     LDX $00  ; load current value to X, we'll need to again soon
     TXA
     AND #$0f ; And with lower 4 bits, checking if the last digit is 0
-    BEQ continueLeftCheck ; if last is 0 we continue the check
+    BNE return ; if last is 0 we continue the check
+    TXA ; transfer value back since it was modified
+    ; we know it ends in 0
+    ; now we can check for even in the high bits
+    ; shift this 4 times to the right
+    LSR A
+    LSR A
+    LSR A
+    LSR A
+    ; now we logical AND with 1 to see if it's even or not
+    AND #01
+    ; if it's a border we change direction
+    BEQ flipLeftRight
     RTS
-    continueLeftCheck:
-        TXA ; transfer value back since it was modified
-        ; we know it ends in 0
-        ; now we can check for even in the high bits
-        ; shift this 4 times to the right
-        LSR A
-        LSR A
-        LSR A
-        LSR A
-        ; now we logical AND with 1 to see if it's even or not
-        AND #01
-        ; if it's a border we change direction
-        BEQ flipLeftRight
-        RTS
 
 checkRight:
     ; right border will be the odd ones finish in f
@@ -220,44 +219,38 @@ checkRight:
     TXA
     AND #$f
     CMP #$0f
-    BEQ continueRightCheck
+    BNE return
+    TXA
+    LSR A
+    LSR A
+    LSR A
+    LSR A
+    AND #1
+    BNE flipLeftRight
     RTS
-    continueRightCheck:
-        TXA
-        LSR A
-        LSR A
-        LSR A
-        LSR A
-        AND #1
-        BNE flipLeftRight
-        RTS
 
 checkBottom:
     ; we need to see if we are on page 5
     LDX $01
     CPX #5
-    BEQ continueBottomCheck
-    RTS    
-    continueBottomCheck:
-        ; position e0-ff will be the bottom left corner
-        ; if you do $01 minus e0, the result should be > 0, otherwise we're at the bottom
-        LDA $00
-        SBC #$e0
-        BCS flipUpDown
-        RTS
+    BNE return
+    ; position e0-ff will be the bottom left corner
+    ; if you do $01 minus e0, the result should be > 0, otherwise we're at the bottom
+    LDA $00
+    SBC #$e0
+    BCS flipUpDown
+    RTS
 
 checkTop:
     ; check if we are on page 2
     LDX $01
     CPX #2
-    BEQ continueTopCheck
+    BNE return
+    LDA $00
+    ; 0 - 1f is top row
+    SBC #$1e
+    BCC  flipUpDown
     RTS
-    continueTopCheck:
-        LDA $00
-        ; 0 - 1f is top row
-        SBC #$1e
-        BCC  flipUpDown
-        RTS
 
 flipLeftRight:
     ; we need to flip left right
@@ -284,21 +277,14 @@ doFlip:
     TXA
     AND #$0f
     STA $05
-    BEQ skipColor ; avoid black since backgroun is black
+    BNE return ; avoid black since backgroun is black
+    INC $05
     RTS
-    skipColor:
-        INC $05
-        RTS
 
-; from that Gist
-spinWheels:
-  ;slow the game down by wasting cycles
-  ldx #$50       ;load zero in the X register
-spinloop:
-  ;nop          ;no operation, just skip a cycle
-  nop          ;no operation, just skip a cycle
-  dex          ;subtract one from the value stored in register x
-  bne spinloop ;if the zero flag is clear, loop. The first dex above wrapped the
-               ;value of x to hex $ff, so the next zero value is 255 (hex $ff)
-               ;loops later.
-  rts          ;return
+wait:
+    LDX $10
+waitLoop:
+    NOP
+    DEX
+    BNE waitLoop
+    RTS
